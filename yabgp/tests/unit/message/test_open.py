@@ -67,7 +67,7 @@ class TestOpen(unittest.TestCase):
         my_capa = {
             'cisco_route_refresh': True,
             'route_refresh': True,
-            'add_path': 'ipv4_receive',
+            'add_path': [{'afi_safi': 'ipv4', 'send/receive': 'receive'}],
             'four_bytes_as': True,
             'afi_safi': [(1, 1)],
             'enhanced_route_refresh': True}
