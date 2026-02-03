@@ -64,27 +64,49 @@ class ASPath(Attribute):
         :param asn4: 4 bytes asn or not
         :param value: raw binary balue
         """
-        # Loop over all path segments
         aspath = []
-        while len(value) > 0:
-            seg_type, length = struct.unpack('!BB', value[:2])
-            if seg_type not in [cls.AS_SET, cls.AS_SEQUENCE, cls.AS_CONFED_SEQUENCE, cls.AS_CONFED_SET]:
-                raise excep.UpdateMessageError(
-                    sub_error=bgp_cons.ERR_MSG_UPDATE_MALFORMED_ASPATH,
-                    data=repr(value))
-            try:
-                if asn4:
-                    segment = list(struct.unpack('!%dI' % length, value[2:2 + length * 4]))
-                    value = value[2 + length * 4:]
+        offset = 0
+        total_len = len(value)
 
-                else:
-                    segment = list(struct.unpack('!%dH' % length, value[2:2 + length * 2]))
-                    value = value[2 + length * 2:]
-            except Exception:
+        # Determine ASN format: 4 bytes ('I') or 2 bytes ('H')
+        asn_byte_len = 4 if asn4 else 2
+        asn_fmt_char = 'I' if asn4 else 'H'
+
+        valid_types = {
+            cls.AS_SET,
+            cls.AS_SEQUENCE,
+            cls.AS_CONFED_SEQUENCE,
+            cls.AS_CONFED_SET
+        }
+
+        while offset < total_len:
+            if offset + 2 > total_len:
                 raise excep.UpdateMessageError(
                     sub_error=bgp_cons.ERR_MSG_UPDATE_ATTR_LEN,
                     data='')
+
+            seg_type, num_ases = struct.unpack_from('!BB', value, offset)
+
+            if seg_type not in valid_types:
+                raise excep.UpdateMessageError(
+                    sub_error=bgp_cons.ERR_MSG_UPDATE_MALFORMED_ASPATH,
+                    data=repr(value[offset:]))
+
+            offset += 2
+
+            segment_byte_len = num_ases * asn_byte_len
+
+            if offset + segment_byte_len > total_len:
+                raise excep.UpdateMessageError(
+                    sub_error=bgp_cons.ERR_MSG_UPDATE_ATTR_LEN,
+                    data='')
+
+            fmt = '!%d%s' % (num_ases, asn_fmt_char)
+            segment = list(struct.unpack_from(fmt, value, offset))
+
             aspath.append((seg_type, segment))
+            offset += segment_byte_len
+
         return aspath
 
     @classmethod
