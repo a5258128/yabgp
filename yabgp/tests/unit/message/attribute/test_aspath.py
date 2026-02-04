@@ -133,6 +133,27 @@ class TestASPATH(unittest.TestCase):
         as_path = ASPath.construct(asn4=False, value=[(4, [1001, 1002]), (3, [1003, 1004])])
         self.assertEqual(as_path, b'@\x02\x0c\x04\x02\x03\xe9\x03\xea\x03\x02\x03\xeb\x03\xec')
 
+    def test_parse_complex_asn4(self):
+        # 4bytes ASN with multiple segments and multiple ASNs per segment
+        # Segment 1: Type 2 (AS_SEQUENCE), Count 4, ASNs: [65536, 65537, 65538, 65539]
+        # Segment 2: Type 1 (AS_SET), Count 3, ASNs: [65540, 65541, 65542]
+        # Segment 3: Type 3 (AS_CONFED_SEQUENCE), Count 2, ASNs: [65543, 65544]
+        # Segment 4: Type 4 (AS_CONFED_SET), Count 2, ASNs: [65545, 65546]
+        data = (
+            b'\x02\x04\x00\x01\x00\x00\x00\x01\x00\x01\x00\x01\x00\x02\x00\x01\x00\x03'
+            b'\x01\x03\x00\x01\x00\x04\x00\x01\x00\x05\x00\x01\x00\x06'
+            b'\x03\x02\x00\x01\x00\x07\x00\x01\x00\x08'
+            b'\x04\x02\x00\x01\x00\x09\x00\x01\x00\x0a'
+        )
+        as_path = ASPath.parse(value=data, asn4=True)
+        expected = [
+            (2, [65536, 65537, 65538, 65539]),
+            (1, [65540, 65541, 65542]),
+            (3, [65543, 65544]),
+            (4, [65545, 65546])
+        ]
+        self.assertEqual(as_path, expected)
+
 
 if __name__ == '__main__':
     unittest.main()
